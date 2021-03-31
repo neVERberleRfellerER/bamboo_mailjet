@@ -32,7 +32,7 @@ defmodule Bamboo.MailjetAdapter do
   @impl true
   def deliver(%Bamboo.Email{} = email, config) do
     config = handle_config(config)
-    body = email |> to_mailjet_body |> Bamboo.json_library().encode!()
+    body = email |> to_mailjet_body() |> Bamboo.json_library().encode!()
     url = [base_uri(), @send_message_path]
 
     case :hackney.post(url, headers(config), body, [:with_body]) do
@@ -92,20 +92,23 @@ defmodule Bamboo.MailjetAdapter do
   end
 
   defp to_mailjet_body(%Email{} = email) do
-    %{}
-    |> put_from(email)
-    |> put_subject(email)
-    |> put_html_body(email)
-    |> put_text_body(email)
-    |> put_to(email)
-    |> put_cc(email)
-    |> put_bcc(email)
-    |> put_template_id(email)
-    |> put_template_language(email)
-    |> put_vars(email)
-    |> put_custom_id(email)
-    |> put_event_payload(email)
-    |> put_attachments(email)
+    message_body =
+      %{}
+      |> put_from(email)
+      |> put_subject(email)
+      |> put_html_body(email)
+      |> put_text_body(email)
+      |> put_to(email)
+      |> put_cc(email)
+      |> put_bcc(email)
+      |> put_template_id(email)
+      |> put_template_language(email)
+      |> put_vars(email)
+      |> put_custom_id(email)
+      |> put_event_payload(email)
+      |> put_attachments(email)
+
+    %{"Messages" => [message_body]}
   end
 
   defp prepare_recipients(recipients),

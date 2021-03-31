@@ -47,7 +47,7 @@ defmodule Bamboo.MailjetAdapterTest do
 
     post "/send" do
       case conn.params do
-        %{"From" => %{"Email" => "INVALID_EMAIL"}} ->
+        %{"Messages" => [%{"From" => %{"Email" => "INVALID_EMAIL"}}]} ->
           conn |> send_resp(500, "Error!!") |> send_to_parent
 
         _ ->
@@ -109,7 +109,7 @@ defmodule Bamboo.MailjetAdapterTest do
 
     email |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params, req_headers: headers}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}, req_headers: headers}}
 
     assert params["From"]["Name"] == email.from |> elem(0)
     assert params["From"]["Email"] == email.from |> elem(1)
@@ -142,7 +142,7 @@ defmodule Bamboo.MailjetAdapterTest do
 
     email |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
     refute Enum.member?(params, "recipients")
 
     assert params["To"] == [
@@ -169,7 +169,7 @@ defmodule Bamboo.MailjetAdapterTest do
 
     email |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
 
     assert params["Bcc"] == [
              %{"Email" => "foo1@bar.com", "Name" => "user1"},
@@ -187,7 +187,7 @@ defmodule Bamboo.MailjetAdapterTest do
     |> MailjetHelper.template_language(true)
     |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
     assert params["TemplateID"] == "42"
     assert params["TemplateLanguage"] == true
   end
@@ -201,7 +201,7 @@ defmodule Bamboo.MailjetAdapterTest do
     |> MailjetHelper.put_var("foo2", "bar2")
     |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
     assert params["Variables"] == %{"foo1" => "bar1", "foo2" => "bar2"}
   end
 
@@ -213,7 +213,7 @@ defmodule Bamboo.MailjetAdapterTest do
     |> MailjetHelper.put_custom_id("customId1")
     |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
     assert params["CustomID"] == "customId1"
   end
 
@@ -225,7 +225,7 @@ defmodule Bamboo.MailjetAdapterTest do
     |> MailjetHelper.put_event_payload("customEventPayLoad")
     |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
     assert params["EventPayload"] == "customEventPayLoad"
   end
 
@@ -239,7 +239,7 @@ defmodule Bamboo.MailjetAdapterTest do
     email = new_email()
     email |> MailjetAdapter.deliver(@config)
 
-    assert_receive {:fake_mailjet, %{params: params}}
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
     refute Map.has_key?(params, "attachments")
   end
 
