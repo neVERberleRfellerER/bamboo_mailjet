@@ -1,5 +1,6 @@
 defmodule Bamboo.MailjetAdapterTest do
   use ExUnit.Case
+
   alias Bamboo.Email
   alias Bamboo.MailjetAdapter
   alias Bamboo.MailjetHelper
@@ -11,6 +12,7 @@ defmodule Bamboo.MailjetAdapterTest do
     api_key: "123_abc",
     api_private_key: nil
   }
+
   defmodule FakeMailjet do
     use Plug.Router
 
@@ -44,9 +46,12 @@ defmodule Bamboo.MailjetAdapterTest do
     end
 
     post "/send" do
-      case Map.get(conn.params, "fromemail") do
-        "INVALID_EMAIL" -> conn |> send_resp(500, "Error!!") |> send_to_parent
-        _ -> conn |> send_resp(200, "SENT") |> send_to_parent
+      case conn.params do
+        %{"From" => %{"Email" => "INVALID_EMAIL"}} ->
+          conn |> send_resp(500, "Error!!") |> send_to_parent
+
+        _ ->
+          conn |> send_resp(200, "SENT") |> send_to_parent
       end
     end
 
@@ -142,20 +147,20 @@ defmodule Bamboo.MailjetAdapterTest do
 
     assert params["To"] == [
              %{"Email" => "foo1@bar.com", "Name" => "foo1"},
-             %{"Email" => "foo2@bar.com", "Name" => nil},
-             %{"Email" => "foo3@bar.com", "Name" => nil}
+             %{"Email" => "foo2@bar.com"},
+             %{"Email" => "foo3@bar.com"}
            ]
 
     assert params["Cc"] == [
              %{"Email" => "foo1@bar.com", "Name" => "foo1"},
-             %{"Email" => "foo2@bar.com", "Name" => nil},
-             %{"Email" => "foo3@bar.com", "Name" => nil}
+             %{"Email" => "foo2@bar.com"},
+             %{"Email" => "foo3@bar.com"}
            ]
 
     assert params["Bcc"] == [
              %{"Email" => "foo1@bar.com", "Name" => "foo1"},
-             %{"Email" => "foo2@bar.com", "Name" => nil},
-             %{"Email" => "foo3@bar.com", "Name" => nil}
+             %{"Email" => "foo2@bar.com"},
+             %{"Email" => "foo3@bar.com"}
            ]
   end
 
@@ -168,8 +173,8 @@ defmodule Bamboo.MailjetAdapterTest do
 
     assert params["Bcc"] == [
              %{"Email" => "foo1@bar.com", "Name" => "user1"},
-             %{"Email" => "foo2@bar.com", "Name" => nil},
-             %{"Email" => "foo3@bar.com", "Name" => nil}
+             %{"Email" => "foo2@bar.com"},
+             %{"Email" => "foo3@bar.com"}
            ]
   end
 
@@ -224,12 +229,10 @@ defmodule Bamboo.MailjetAdapterTest do
     assert params["EventPayload"] == "customEventPayLoad"
   end
 
-  test "raises if the response is not a success" do
-    email = new_email(from: {"John", "me@example.com"})
-
-    assert_raise Bamboo.MailjetAdapter.ApiError, fn ->
-      email |> MailjetAdapter.deliver(@config)
-    end
+  test "return error if the response is not a success" do
+    email = new_email(from: {"John Doe", "INVALID_EMAIL"})
+    result = email |> MailjetAdapter.deliver(@config)
+    assert {:error, %Bamboo.ApiError{message: _message}} = result
   end
 
   test "deliver/2 omits attachments key if no attachments" do

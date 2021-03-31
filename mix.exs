@@ -4,8 +4,8 @@ defmodule BambooMailjet.Mixfile do
   def project do
     [
       app: :bamboo_mailjet,
-      version: "0.2.0",
-      elixir: "~> 1.6",
+      version: "0.3.0",
+      elixir: "~> 1.11",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       description: "A Mailjet adapter for Bamboo",
@@ -16,9 +16,9 @@ defmodule BambooMailjet.Mixfile do
 
   defp package do
     [
-      maintainers: ["moxide"],
+      maintainers: ["neVERberleRfellerER"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/moxide/bamboo_mailjet"}
+      links: %{"GitHub" => "https://github.com/neVERberleRfellerER/bamboo_mailjet"}
     ]
   end
 
@@ -30,12 +30,12 @@ defmodule BambooMailjet.Mixfile do
 
   defp deps do
     [
-      {:bamboo, "~> 1.4"},
-      {:cowboy, "~> 2.7", only: [:test, :dev]},
-      {:plug_cowboy, "~> 2.1", only: [:test, :dev]},
-      {:credo, "~> 1.3.2", only: [:dev, :test]},
-      {:ex_doc, "~> 0.21.3", only: :dev},
-      {:inch_ex, "~> 2.0", only: :dev}
+      {:bamboo, "~> 2.0"},
+      {:cowboy, "~> 2.8", only: [:test, :dev]},
+      {:plug_cowboy, "~> 2.4", only: [:test, :dev]},
+      {:credo, "~> 1.5", only: [:dev, :test]},
+      {:ex_doc, "~> 0.24", only: :dev},
+      {:inch_ex, "~> 2.0.0", only: :dev}
     ]
   end
 end

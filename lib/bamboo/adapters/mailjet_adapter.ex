@@ -20,89 +20,75 @@ defmodule Bamboo.MailjetAdapter do
 
   """
 
+  @service_name "Mailjet"
   @default_base_uri "https://api.mailjet.com/v3.1"
   @send_message_path "/send"
   @behaviour Bamboo.Adapter
 
+  import Bamboo.ApiError
+
   alias Bamboo.Email
 
-  defmodule ApiError do
-    defexception [:message]
-
-    def exception(%{message: message}) do
-      %ApiError{message: message}
-    end
-
-    def exception(%{params: params, response: response}) do
-      message = """
-      There was a problem sending the email through the Mailjet API.
-
-      Here is the response:
-
-      #{inspect(response, limit: :infinity)}
-
-      Here are the params we sent:
-
-      #{inspect(params, limit: :infinity)}
-
-      """
-
-      %ApiError{message: message}
-    end
-  end
-
-  def deliver(email, config) do
-    api_key = get_key(config, :api_key)
-    api_private_key = get_key(config, :api_private_key)
+  @impl true
+  def deliver(%Bamboo.Email{} = email, config) do
+    config = handle_config(config)
     body = email |> to_mailjet_body |> Bamboo.json_library().encode!()
     url = [base_uri(), @send_message_path]
 
-    case :hackney.post(url, gen_headers(api_key, api_private_key), body, [:with_body]) do
+    case :hackney.post(url, headers(config), body, [:with_body]) do
       {:ok, status, _headers, response} when status > 299 ->
-        raise(ApiError, %{params: body, response: response})
+        {:error, build_api_error(@service_name, response, body)}
 
       {:ok, status, headers, response} ->
-        %{status_code: status, headers: headers, body: response}
+        {:ok, %{status_code: status, headers: headers, body: response}}
 
       {:error, reason} ->
-        raise(ApiError, %{message: inspect(reason)})
+        {:error, build_api_error(inspect(reason))}
     end
   end
 
-  @doc false
+  @impl true
   def handle_config(config) do
-    cond do
-      config[:api_key] in [nil, "", ''] -> raise_key_error(config, :api_key)
-      config[:api_private_key] in [nil, "", ''] -> raise_key_error(config, :api_private_key)
-      true -> config
-    end
+    config
+    |> Map.put(:api_key, get_setting(config, :api_key))
+    |> Map.put(:domain, get_setting(config, :api_private_key))
   end
 
-  @doc false
+  @impl true
   def supports_attachments?, do: true
 
-  defp get_key(config, key) do
-    case Map.get(config, key) do
-      nil -> raise_key_error(config, key)
-      key -> key
+  defp headers(config) do
+    [{"Content-Type", "application/json"}, {"Authorization", "Basic #{auth_token(config)}"}]
+  end
+
+  defp auth_token(%{api_key: api_key, api_private_key: api_private_key}) do
+    Base.encode64("#{api_key}:#{api_private_key}")
+  end
+
+  defp get_setting(config, key) do
+    config[key]
+    |> case do
+      {:system, var} ->
+        System.get_env(var)
+
+      value ->
+        value
+    end
+    |> case do
+      value when value in [nil, ""] ->
+        raise_missing_setting_error(config, key)
+
+      value ->
+        value
     end
   end
 
-  defp raise_key_error(config, key) do
+  defp raise_missing_setting_error(config, setting) do
     raise ArgumentError, """
-    There was no #{key} set for the Mailjet adapter.
-
+    There was no #{setting} set for the Mailjet adapter.
     * Here are the config options that were passed in:
-
     #{inspect(config)}
     """
-  end
-
-  defp gen_headers(api_key, api_private_key) do
-    [
-      {"Content-Type", "application/json"},
-      {"Authorization", "Basic " <> Base.encode64("#{api_key}:#{api_private_key}")}
-    ]
   end
 
   defp to_mailjet_body(%Email{} = email) do
@@ -123,19 +109,24 @@ defmodule Bamboo.MailjetAdapter do
   end
 
   defp prepare_recipients(recipients),
-    do: Enum.map(recipients, &prepare_recipient(&1))
+    do: Enum.map(recipients, &prepare_recipient/1)
 
-  defp prepare_recipient({name, address}),
-    do: %{"Name" => name, "Email" => address}
+  defp prepare_recipient({name, address}) when name in [nil, "", ''] do
+    %{"Email" => address}
+  end
 
-  defp put_from(body, %Email{from: address}) when is_binary(address),
-    do: Map.put(body, "From", %{"Email" => address})
+  defp prepare_recipient({name, address}) do
+    %{"Name" => name, "Email" => address}
+  end
 
-  defp put_from(body, %Email{from: {name, address}}) when name in [nil, "", ''],
-    do: Map.put(body, "From", %{"Email" => address})
+  defp prepare_sender(sender), do: prepare_recipient(sender)
 
   defp put_from(body, %Email{from: {name, address}}) do
-    Map.put(body, "From", prepare_recipient({name, address}))
+    Map.put(body, "From", prepare_sender({name, address}))
+  end
+
+  defp put_from(body, %Email{from: address}) when is_binary(address) do
+    Map.put(body, "From", prepare_sender({nil, address}))
   end
 
   defp put_to(body, %Email{to: []}), do: body
