@@ -101,6 +101,7 @@ defmodule Bamboo.MailjetAdapter do
       |> put_to(email)
       |> put_cc(email)
       |> put_bcc(email)
+      |> put_reply_to(email)
       |> put_template_id(email)
       |> put_template_language(email)
       |> put_vars(email)
@@ -137,6 +138,16 @@ defmodule Bamboo.MailjetAdapter do
   defp put_to(body, %Email{to: to}) do
     Map.put(body, "To", prepare_recipients(to))
   end
+
+  defp put_reply_to(body, %Email{headers: %{"reply-to" => {name, address}}}) do
+    Map.put(body, "ReplyTo", prepare_sender({name, address}))
+  end
+
+  defp put_reply_to(body, %Email{headers: %{"reply-to" => reply_to}}) do
+    Map.put(body, "ReplyTo", prepare_sender({nil, reply_to}))
+  end
+
+  defp put_reply_to(body, %Email{}), do: body
 
   defp put_cc(body, %Email{cc: []}), do: body
 

@@ -164,6 +164,20 @@ defmodule Bamboo.MailjetAdapterTest do
            ]
   end
 
+  test "deliver/2 correctly formats TO, Reply-To" do
+    email =
+      new_email(to: [{"foo1", "foo1@bar.com"}])
+      |> Email.put_header("reply-to", "foo2@bar.com")
+
+    email |> MailjetAdapter.deliver(@config)
+
+    assert_receive {:fake_mailjet, %{params: %{"Messages" => [params]}}}
+    refute Enum.member?(params, "recipients")
+
+    assert params["To"] == [%{"Email" => "foo1@bar.com", "Name" => "foo1"}]
+    assert params["ReplyTo"] == %{"Email" => "foo2@bar.com"}
+  end
+
   test "deliver/2 correctly formats Mailjet recipients" do
     email = new_email(bcc: [{"user1", "foo1@bar.com"}, {nil, "foo2@bar.com"}, "foo3@bar.com"])
 
